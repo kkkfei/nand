@@ -35,6 +35,57 @@ D=M
 A=A-1
 M=D+M
 ]])
+    elseif arth == "sub" then
+        io.write([[
+@SP
+M=M-1
+A=M
+D=M
+A=A-1
+M=M-D
+]])        
+
+    elseif arth == "neg" then
+        io.write([[
+@SP
+A=M
+A=A-1
+M=-M
+]])          
+
+    elseif arth == "eq" then
+        local str = [[
+@SP
+M=M-1
+A=M
+D=M
+A=A-1
+@L1
+M-D;JEQ
+@SP
+A=M
+M=0
+@END
+1;JMP
+(LABEL_TRUE)  
+@SP
+A=M
+M=-1
+(END)
+@0
+]]
+    string.gsub(str, "L1")             
+
+    elseif arth == "gt" then
+
+    elseif arth == "lt" then
+
+    elseif arth == "and" then
+
+    elseif arth == "or" then
+
+    elseif arth == "not" then
+
     end
 end
  
