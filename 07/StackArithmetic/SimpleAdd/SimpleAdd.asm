@@ -1,20 +1,19 @@
-@7
+//push constant 3
+//------push constant num -------
+@3
 D=A
 @SP
 A=M
 M=D
 @SP
 M=M+1
-@8
+//push constant 5
+//------push constant num -------
+@5
 D=A
 @SP
 A=M
 M=D
 @SP
 M=M+1
-@SP
-M=M-1
-A=M
-D=M
-A=A-1
-M=D+M
+//pop temp 1
