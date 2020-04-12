@@ -5,12 +5,20 @@ local Parser = {}
 local C_PUSH = 1
 local C_POP = 2
 local C_A = 3
+local C_LABEL = 4
+local C_GOTO = 5
+local C_IF = 6
+local C_FUNCTION = 7
+local C_RETURN = 8
+local C_CALL = 9
 
 local lable_cnt= 1
 
+local labelPrefix = "vm$"
+
 
 local function GetName(filePath)
-    local path, name = string.match(filePath, "(.-([^\\]+))%.vm$")
+    local path, name = string.match(filePath, "(.-([^/\\]+))%.vm$")
     if path == nil then error("file name error!") end
     return path, name
 end
@@ -256,11 +264,123 @@ M=D
     str = string.gsub(str, "__NUM__", tostring(pos))
     return str
 end
+
+function CodeLabel(label)
+    return "("..labelPrefix..label.. ")\n"
+end
+
+function CodeIf(label)
+    local str = 
+[[
+@SP
+AM=M-1
+D=M
+@__LABEL__
+D;JNE
+]]
+
+    str = string.gsub(str, "__LABEL__", labelPrefix..label)
+    return str
+end
+
+function CodeGoto(label)
+    return "@" .. labelPrefix..label .. "\n0;JMP\n"
+end
+
+
+
+function CodeFunction(fn, lcl_cnt)
+    --[[
+        local变量处理
+    ]]
+    local outStr = ""
+local pushLocal =
+[[
+@SP
+A=M
+M=0
+@SP
+M=M+1    
+]]
+    for i=1, lcl_cnt do
+        outStr = outStr .. pushLocal
+    end
+    return outStr
+end
+
+function CodeReturn()
+    local str =
+[[
+//Save return addr in R14
+//Save return value addr in R15
+@ARG
+D=M
+@R15
+M=D
+@LCL
+A=M-1
+D=A
+@R13 
+M=D
+//Restore THAT
+A=D
+D=M
+@THAT
+M=D
+//Restore THIS
+@R13
+AM=M-1
+D=M
+@THIS
+M=D
+//Restore ARG
+@R13
+AM=M-1
+D=M
+@ARG
+M=D
+//Restore LCL
+@R13
+AM=M-1
+D=M
+@LCL
+M=D
+//Get Return addr
+@R13
+A=M-1
+D=M
+@R14
+M=D
+//Set return value
+@SP
+A=M-1
+D=M
+@R15
+A=M
+M=D
+//Set SP
+@R15
+D=M+1
+@SP
+M=D
+//JMP back to caller
+@R14
+A=M
+0;JMP
+]]
+
+    return str
+end
+
+function CodeCall(fn, args_cnt)
+
+end
  
 function VMTranslator.start(filePath)
     local path, name = GetName(filePath)
     local outFile = path..".asm"
 
+    labelPrefix = name .. "$"
     print(path, name)
     local lines = Parser.parse(filePath)
     io.output(outFile)
@@ -305,6 +425,18 @@ function VMTranslator.start(filePath)
             end
         elseif line[1] == C_A then
             CodeArthmetic(line[2])
+        elseif line[1] == C_LABEL then
+            io.write(CodeLabel(line[2]))
+        elseif line[1] == C_IF then
+            io.write(CodeIf(line[2]))
+        elseif line[1] == C_GOTO then
+            io.write(CodeGoto(line[2]))
+        elseif line[1] == C_FUNCTION then
+            io.write(CodeFunction(line[2], line[3]))
+        elseif line[1] == C_RETURN then
+            io.write(CodeReturn())
+        elseif line[1] == C_CALL then
+            io.write(CodeCall(line[2], line[3]))
         end
     end
 end
@@ -329,6 +461,36 @@ function Parser.parse(filePath)
             local a, b = string.match(line, "^pop (%a+) (%w+)")
             res[#res+1] = {C_POP, a, b, src=line}
             print("->pop command: ", a, b)
+        elseif string.match(line, "^label ") then
+            print(line)
+            local a = string.match(line, "^label ([^%s]*)")
+            res[#res+1] = {C_LABEL, a, src=line}
+            print("->label command: ", a )
+            
+        elseif string.match(line, "^if%-goto") then
+            print(line)
+            local a = string.match(line, "^if%-goto ([^%s]*)")
+            res[#res+1] = {C_IF, a, src=line}
+            print("->if command: ", a )
+        elseif string.match(line, "^goto") then
+            print(line)
+            local a = string.match(line, "^goto ([^%s]*)")
+            res[#res+1] = {C_GOTO, a, src=line}
+            print("->goto command: ", a )
+        elseif string.match(line, "^function") then
+            print(line)
+            local a, b = string.match(line, "^function ([^%s]*) ([^%s]*)")
+            res[#res+1] = {C_FUNCTION, a, b, src=line}
+            print("->function command: ", a , b)
+        elseif string.match(line, "^return") then
+            print(line)
+            res[#res+1] = {C_RETURN, src=line}
+            print("->return  command: ")
+        elseif string.match(line, "^call") then
+            print(line)
+            local a, b = string.match(line, "^call ([^%s]*) ([^%s]*)")
+            res[#res+1] = {C_CALL, a, b, src=line}
+            print("->call command: ", a , b)
         else
             print(line)
             local a = string.match(line, "^(%w+)")
