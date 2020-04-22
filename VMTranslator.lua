@@ -1,7 +1,6 @@
 local VMTranslator = {}
 local Parser = {}
  
-
 local C_PUSH = 1
 local C_POP = 2
 local C_A = 3
@@ -13,8 +12,7 @@ local C_RETURN = 8
 local C_CALL = 9
 
 local lable_cnt= 1
-
-local labelPrefix = "vm$"
+local labelPrefix = ""
 
 
 local function GetName(filePath)
@@ -293,7 +291,7 @@ function CodeFunction(fn, lcl_cnt)
     --[[
         local变量处理
     ]]
-    local outStr = ""
+    local outStr = "(" .. fn .. ")\n"
 local pushLocal =
 [[
 @SP
@@ -373,17 +371,88 @@ A=M
 end
 
 function CodeCall(fn, args_cnt)
+local str =
+[[
+//new ARG
+@SP
+D=M
+@__ARGS_CNT__
+D=D-A
+@R13
+M=D
+
+//save return
+@__CALL_RETURN__
+D=A
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+//save LCL
+@LCL
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+//save ARG
+@ARG
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+//save THIS
+@THIS
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+//save THAT
+@THAT
+D=M
+@SP
+A=M
+M=D
+@SP
+M=M+1
+
+//Set New LCL
+@SP
+D=M
+@LCL
+M=D
+
+//Set New ARG
+@R13
+D=M
+@ARG
+M=D
+
+@__FUN_NAME__
+0;JMP
+(__CALL_RETURN__)
+]]
+
+    str = string.gsub(str, "__FUN_NAME__", fn)
+    str = string.gsub(str, "__CALL_RETURN__", "LABEL_RETURN_" .. tostring(lable_cnt))
+    str = string.gsub(str, "__ARGS_CNT__", args_cnt)
+    lable_cnt = lable_cnt + 1
+    return str
 
 end
  
-function VMTranslator.start(filePath)
-    local path, name = GetName(filePath)
-    local outFile = path..".asm"
-
-    labelPrefix = name .. "$"
-    print(path, name)
+function VMTranslator.translate(filePath)
     local lines = Parser.parse(filePath)
-    io.output(outFile)
 
     for _, line in pairs(lines) do
         io.write("//", line.src, "\n")
@@ -502,8 +571,45 @@ function Parser.parse(filePath)
     return res
 end
 
+function codeBootstrap()
+    -- body
+    local str =
+[[
+//sp = 256
+@256
+D=A
+@SP
+M=D
 
-VMTranslator.start(arg[1])
+//call sys.init
+//@Sys.init
+//0;JMP
+]]
+    return str .. CodeCall("Sys.init", 0)
+end
+
+
+function VMTranslator.start()
+    local outFile = nil
+    local idx = 1
+    if arg[2] ~= nil then
+        outFile = arg[1]
+        idx = 2
+    else
+        outFile = path..".asm"
+    end
+    
+    io.output(outFile)
+    io.write(codeBootstrap())
+    while arg[idx] do
+        local path, name = GetName(arg[idx])
+        labelPrefix = name .. "$"
+        VMTranslator.translate(arg[idx])
+        idx = idx+1
+    end
+end
+ 
+VMTranslator.start()
 
 
 
