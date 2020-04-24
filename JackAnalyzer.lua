@@ -1,4 +1,5 @@
  local tokenizer = require "JackTokenizer"
+ local compiler = require "CompilationEngine"
  
 
 local function getName(filePath)
@@ -26,12 +27,14 @@ local function start()
     local idx = 1
     while arg[idx] do
         local path, name = getName(arg[idx])
-        local outFile = path .. "T_m.xml"
+        local outFile = path .. "_m.xml"
         io.output(outFile)
-        io.write("<tokens>\n")
+        -- io.write("<tokens>\n")
         local tokens = tokenizer.parse(arg[idx])
-        outTokens(tokens)
-        io.write("</tokens>\n")
+        --outTokens(tokens)
+        compiler.init(tokens)
+        compiler.compileClass()
+        -- io.write("</tokens>\n")
         idx = idx+1
     end
 end
