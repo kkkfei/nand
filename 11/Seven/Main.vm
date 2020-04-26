@@ -1,9 +1,26 @@
-function Main.main 0
-push constant 1
+function Main.main 2
+push constant 7
+pop local 1
+push constant 0
+pop local 0
+label Main.main0
+push local 1
+push constant 0
+gt
+not
+if-goto Main.main1
+push local 0
 push constant 2
-push constant 3
-call Math.multiply 2
 add
+pop local 0
+push local 1
+push constant 1
+sub
+pop local 1
+goto Main.main0
+label Main.main1
+push local 0
 call Output.printInt 1
 push constant 0
 return
+

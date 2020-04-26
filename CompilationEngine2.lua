@@ -1,21 +1,6 @@
 local w = require("vmwriter")
 local t = {}
 
-local function getPrefix(lv)
-    return ""
-end
-
-local wn = function(a, v, lv)
-end
-
-local ws = function(a, lv)
-end
-
-local we = function(a, lv)
-end
-
- 
-
 local function getNextToken()
     assert(t.idx+1 <= #(t.tokens))
     local a = t.tokens[t.idx]
@@ -24,10 +9,9 @@ local function getNextToken()
     return a, b
 end
 
-local function eatSymbol(symbol, lv)
+local function eatSymbol(symbol)
     local a, b = getNextToken()
     assert(b == symbol)
-    wn(a, b, lv)
 end
 
 local function eatIdentifier()
@@ -36,18 +20,44 @@ local function eatIdentifier()
     return b
 end
 
-function peekNextToken()
+local function peekNextToken()
     assert(t.idx+1 <= #(t.tokens))
     local a = t.tokens[t.idx]
     local b = t.tokens[t.idx+1]
     return a, b
 end
 
-function peekNextNextToken()
+local function peekNextNextToken()
     assert(t.idx+3 <= #(t.tokens))
     local a = t.tokens[t.idx+2]
     local b = t.tokens[t.idx+3]
     return a, b
+end
+
+local function pushVar(name)
+    local kind, objectIdx
+    if t.tm[name] then
+        kind = t.tm[name].kind
+        objectIdx = t.tm[name].idx
+
+        if kind == "var" then kind = "local" end
+        w.writePush(kind, objectIdx)
+    end
+
+    if t.tc[name] then
+        kind = t.tc[name].kind
+        objectIdx = t.tc[name].idx
+
+        if kind == "var" then kind = "local" end
+        w.writePush(kind, objectIdx)
+    end
+end
+
+local function getFunctionLabel()
+    local labelCnt = t.labelCnt
+    local label = t.functionName .. labelCnt
+    t.labelCnt = labelCnt + 1
+    return label
 end
 
 local st_class = {}
@@ -60,29 +70,26 @@ function t.init(tks)
 
     t.tc = {}
     t.tm = {}
+
+    t.labelCnt = 0
 end
+
 
 
 --class: 'class' className '{' classVarDec* subroutineDec* '}'
 function t.compileClass()
-    ws("class")
-    local lv = 1
-
     local a, b  = getNextToken()
     assert(b == "class")
-    wn(a, b, lv)
 
-    t.className = eatIdentifier(lv)
+    t.className = eatIdentifier()
 
-    eatSymbol("{", lv)
+    eatSymbol("{")
 
-    while t.compileClassVarDec(lv) do end
+    while t.compileClassVarDec() do end
 
-    while t.compileSubroutine(lv) do end
+    while t.compileSubroutine() do end
 
-    eatSymbol("}", lv)
-
-    we("class")
+    eatSymbol("}")
 end
 
 local function addTc(name, kind, type)
@@ -140,41 +147,32 @@ local function printTm()
 end
 
 -- classVarDec: ('static' | 'field') type varName (',' varName)* ';'
-function t.compileClassVarDec(lv)
+function t.compileClassVarDec()
     local a, b  = peekNextToken()
     if b ~= "static" and b ~= "field" then return false end
 
-    ws("classVarDec", lv)
-    lv = lv + 1
-
     a, b  = getNextToken()
     assert(b == "static" or b == "field")
-    wn(a, b, lv)
-local kind = b
-
+    local kind = b
     --type: 'int' | 'char' | 'boolean' | className
     a, b = getNextToken()
     assert(b == "int" or b == "char" or b == "boolean" or a == "identifier")
-    wn(a, b, lv)
-local type = b
+    local type = b
 
-local name = eatIdentifier(lv)
-addTc(name, kind, type)
+    local name = eatIdentifier()
+    addTc(name, kind, type)
 
     while true do
         a, b = peekNextToken()
         if b ~= "," then break end
 
-        eatSymbol(",", lv)
-name = eatIdentifier(lv)
-addTc(name, kind, type)
-        end
+        eatSymbol(",")
+        name = eatIdentifier()
+        addTc(name, kind, type)
+    end
 
-        eatSymbol(";", lv)
+    eatSymbol(";")
     
-        lv = lv - 1
-        we("classVarDec", lv)
-
     return true
 end
 
@@ -190,6 +188,7 @@ function t.compileSubroutine()
     t.varCnt = 0
 
     local a, b  = peekNextToken()
+    t.functionType = b
     if b ~= "constructor" and b ~= "function" and b ~= "method" then return false end
 
 
@@ -202,19 +201,22 @@ function t.compileSubroutine()
     local name = eatIdentifier()
     t.functionName = string.format("%s.%s", t.className, name)
     
+    if t.functionType == "method" then
+        addTm("this", "argument", t.className)
+    end
+
     eatSymbol("(")
-    
-    t.compileParameterList(lv)
-    
-    eatSymbol(")", lv)
-    
-    t.compileSubroutineBody(lv)
+    t.compileParameterList()
+    eatSymbol(")")
+    t.compileSubroutineBody()
+
+    io.write("\n")
 
     return true
 end
 
 -- subroutineBody: '{' varDec* statements '}'
-function t.compileSubroutineBody(lv)
+function t.compileSubroutineBody()
     eatSymbol("{")
     
     while t.compileVarDec() do end
@@ -253,41 +255,29 @@ function t.compileParameterList()
 end
 
 -- varDec: 'var' type varName (',' varName)* ';'
-function t.compileVarDec(lv)
-local kind = "var"
+function t.compileVarDec()
+    local kind = "var"
 
     local a, b  = peekNextToken()
     if  b ~= "var" then return false end
-
-    ws("varDec", lv)
-    lv = lv + 1
-
     a, b = getNextToken()
-    wn(a, b, lv)
 
      -- type: 'int' | 'char' | 'boolean' | className
     a, b = getNextToken()
     assert(b == "int" or b == "char" or b == "boolean" or a == "identifier")
-    wn(a, b, lv)
-local type = b
-
-local name = eatIdentifier(lv)
-
-addTm(name, kind, type)
+    local type = b
+    local name = eatIdentifier()
+    addTm(name, kind, type)
 
     while true do
         a, b = peekNextToken()
         if b ~= "," then break end
-        eatSymbol(",", lv)
-        
-name = eatIdentifier(lv)
-addTm(name, kind, type)
-    end 
+        eatSymbol(",")
+        name = eatIdentifier()
+        addTm(name, kind, type)
+    end
 
-    eatSymbol(";", lv)
-    
-    lv = lv - 1
-    we("varDec", lv)
+    eatSymbol(";")
     return true
 end
 
@@ -322,7 +312,7 @@ end
 --[[
     doStatement: 'do' subroutineCall ';'
 ]]
-function t.compileDo(lv)
+function t.compileDo()
 
     local a, b  = getNextToken()
 
@@ -335,56 +325,60 @@ end
 --[[
     letStatement: 'let' varName ('[' expression ']')? '=' expression ';'
 ]]
-function t.compileLet(lv)
-    ws("letStatement", lv)
-    lv = lv + 1
-
+function t.compileLet()
     local a, b  = getNextToken()
-    wn(a, b, lv)
+    local name = eatIdentifier()
 
-    eatIdentifier(lv)
-
-    local a, b  = peekNextToken()
+    local objectIdx = nil
+    local kind = nil
+    if t.tm[name] then
+        kind = t.tm[name].kind
+        objectIdx = t.tm[name].idx
+    end
+    
+    a, b  = peekNextToken()
+    local isArr = false
     if b == "[" then
-        eatSymbol("[", lv)
-        t.compileExpression(lv)
-        eatSymbol("]", lv)
+        eatSymbol("[")
+        t.compileExpression()
+        eatSymbol("]")
+        isArr = true
     end
 
-    eatSymbol("=", lv)
+    eatSymbol("=")
+    t.compileExpression()
+    eatSymbol(";")
 
-    t.compileExpression(lv)
+    if isArr then
 
-    eatSymbol(";", lv)
- 
-    lv = lv - 1
-    we("letStatement", lv)
+    else
+        local segment = (kind == "var" and "local" or kind)
+        w.writePop(segment, objectIdx)
+    end
 end
 
 --[[
     whileStatement: 'while' '(' expression ')' '{' statements '}'
 ]]
-function t.compileWhile(lv)
-    ws("whileStatement", lv)
-    lv = lv + 1
-
+function t.compileWhile()
+    local label1 = getFunctionLabel()
+    local label2 = getFunctionLabel()
     local a, b  = getNextToken()
-    wn(a, b, lv)
- 
-    eatSymbol("(", lv)
+    
+    w.writeLabel(label1)
+    eatSymbol("(")
+    t.compileExpression()
+    eatSymbol(")")
 
-    t.compileExpression(lv)
+    io.write("not\n")
+    w.writeIfgoto(label2)
+    
+    eatSymbol("{")
+    t.compileStatements()
+    eatSymbol("}")
 
-    eatSymbol(")", lv)
-
-    eatSymbol("{", lv)
-
-    t.compileStatements(lv)
-
-    eatSymbol("}", lv)
- 
-    lv = lv - 1
-    we("whileStatement", lv)
+    w.writeGoto(label1)
+    w.writeLabel(label2)
 end
 
 --[[
@@ -413,40 +407,39 @@ end
 --[[
     ifStatement: 'if' '(' expression ')' '{' statements '}'
     ('else' '{' statements '}')?    
+
+    if-goto 
 ]]
-function t.compileIf(lv)
-    ws("ifStatement", lv)
-    lv = lv + 1
+function t.compileIf()
 
     local a, b  = getNextToken()
-    wn(a, b, lv)
+    eatSymbol("(")
+    t.compileExpression()
+    eatSymbol(")")
+    io.write("not\n")
+    local label1 = getFunctionLabel()
+    w.writeIfgoto(label1)
 
-    eatSymbol("(", lv)
-
-    t.compileExpression(lv)
-
-    eatSymbol(")", lv)
-
-    eatSymbol("{", lv)
-    
-    t.compileStatements(lv)
-
-    eatSymbol("}", lv)
+    eatSymbol("{")
+    t.compileStatements()
+    eatSymbol("}")
 
     a, b  = peekNextToken()
     if b == "else" then
-        local a, b  = getNextToken()
-        wn(a, b, lv)
+        local label2 = getFunctionLabel()
+        w.writeGoto(label2)
+        w.writeLabel(label1)
 
-        eatSymbol("{", lv)
-    
-        t.compileStatements(lv)
-    
-        eatSymbol("}", lv)
+        local a, b  = getNextToken()
+        eatSymbol("{")
+        t.compileStatements()
+        eatSymbol("}")
+        
+        w.writeLabel(label2)
+    else
+        w.writeLabel(label1)
     end
 
-    lv = lv - 1
-    we("ifStatement", lv)
 end
 
 --[[
@@ -462,16 +455,17 @@ function t.compileSubroutineCall()
     local objectIdx = nil
     local kind = nil
     local functionName = nil
-    if t.tc[name] then
-        className = t.tc[name].type
-        kind = t.tc[name].kind
-        objectIdx = t.tc[name].idx
+
+    if t.tc[name1] then
+        className = t.tc[name1].type
+        kind = t.tc[name1].kind
+        objectIdx = t.tc[name1].idx
         isMethodCall = true
     end
-    if t.tm[name] then
-        className = t.tm[name].type
-        kind = t.tm[name].kind
-        objectIdx = t.tm[name].idx
+    if t.tm[name1] then
+        className = t.tm[name1].type
+        kind = t.tm[name1].kind
+        objectIdx = t.tm[name1].idx
         isMethodCall = true
     end
     
@@ -484,18 +478,18 @@ function t.compileSubroutineCall()
     if name2 then
         if isMethodCall then
             functionName = className .. "." .. name2
+            pushVar(name1)
         else
             functionName = name1 .. "." .. name2
         end
     else
         functionName = name1
+        pushVar("this")
     end
 
     eatSymbol("(")
-
     local cnt = t.compileExpressionList()
     w.writeFunctionCall(functionName, cnt)
-
     eatSymbol(")")
 end
 
@@ -560,15 +554,30 @@ function t.compileTerm()
     elseif  isKeywordConstant(b)  then
         --'true' | 'false' | 'null' | 'this'
         a, b = getNextToken()
+        
+        if b == "true" then 
+            w.writePush("constant", "1")
+            io.write("neg\n")
+        elseif b == "false" or b == "null" then
+            w.writePush("constant", "0")
+        elseif b == "this" then
+            
+        end
 
     elseif b == "(" then
         eatSymbol("(")
         t.compileExpression()
         eatSymbol(")")
-    elseif b == "-" or b == "~" then
+    elseif b == "-"  then
         a, b = getNextToken()
-
         t.compileTerm()
+        io.write("neg\n")
+        
+    elseif b == "~" then
+        a, b = getNextToken()
+        t.compileTerm()
+
+        io.write("not\n")
     else
         -- varName | varName '[' expression ']' | subroutineCall |
         a,b = peekNextNextToken()
@@ -581,7 +590,9 @@ function t.compileTerm()
             t.compileExpression()
             eatSymbol("]")
         else
-            eatIdentifier()
+            -- varName
+            local varname = eatIdentifier()
+            pushVar(varname)
         end
     end
  

@@ -10,7 +10,18 @@
 class Main {
 
    function void main() {
-      do Output.printInt(1 + (2 * 3));
+      var int sum;
+      var int cnt;
+      let cnt = 7;
+      let sum = 0;
+
+      while(cnt > 0)
+      {
+         let sum = sum + 2;
+         let cnt = cnt - 1;
+      }
+      do Output.printInt(sum);
+
       return;
    }
 
