@@ -4,11 +4,13 @@ push constant 16
 push constant 1
 neg
 call Main.fillMemory 3
+pop temp 0
 push constant 8000
 call Memory.peek 1
 pop local 0
 push local 0
 call Main.convert 1
+pop temp 0
 push constant 0
 return
 
@@ -16,10 +18,10 @@ function Main.convert 3
 push constant 1
 neg
 pop local 2
-label Main.convert0
+label Main_0
 push local 2
 not
-if-goto Main.convert1
+if-goto Main_1
 push local 1
 push constant 1
 add
@@ -32,7 +34,7 @@ push constant 16
 gt
 not
 not
-if-goto Main.convert2
+if-goto Main_2
 push argument 0
 push local 0
 and
@@ -40,27 +42,29 @@ push constant 0
 eq
 not
 not
-if-goto Main.convert3
+if-goto Main_3
 push constant 8000
 push local 1
 add
 push constant 1
 call Memory.poke 2
-goto Main.convert4
-label Main.convert3
+pop temp 0
+goto Main_4
+label Main_3
 push constant 8000
 push local 1
 add
 push constant 0
 call Memory.poke 2
-label Main.convert4
-goto Main.convert5
-label Main.convert2
+pop temp 0
+label Main_4
+goto Main_5
+label Main_2
 push constant 0
 pop local 2
-label Main.convert5
-goto Main.convert0
-label Main.convert1
+label Main_5
+goto Main_0
+label Main_1
 push constant 0
 return
 
@@ -69,27 +73,28 @@ push argument 0
 push constant 0
 eq
 not
-if-goto Main.nextMask6
+if-goto Main_6
 push constant 1
 return
-goto Main.nextMask7
-label Main.nextMask6
+goto Main_7
+label Main_6
 push argument 0
 push constant 2
 call Math.multiply 2
 return
-label Main.nextMask7
+label Main_7
 
 function Main.fillMemory 0
-label Main.fillMemory8
+label Main_8
 push argument 1
 push constant 0
 gt
 not
-if-goto Main.fillMemory9
+if-goto Main_9
 push argument 0
 push argument 2
 call Memory.poke 2
+pop temp 0
 push argument 1
 push constant 1
 sub
@@ -98,8 +103,8 @@ push argument 0
 push constant 1
 add
 pop argument 0
-goto Main.fillMemory8
-label Main.fillMemory9
+goto Main_8
+label Main_9
 push constant 0
 return
 

@@ -48,14 +48,33 @@ local function pushVar(name)
         kind = t.tc[name].kind
         objectIdx = t.tc[name].idx
 
-        if kind == "var" then kind = "local" end
+        if kind == "field" then kind = "this" end
         w.writePush(kind, objectIdx)
+    end
+end
+
+local function popVar(name)
+    local kind, objectIdx
+    if t.tm[name] then
+        kind = t.tm[name].kind
+        objectIdx = t.tm[name].idx
+
+        if kind == "var" then kind = "local" end
+        w.writePop(kind, objectIdx)
+    end
+
+    if t.tc[name] then
+        kind = t.tc[name].kind
+        objectIdx = t.tc[name].idx
+
+        if kind == "field" then kind = "this" end
+        w.writePop(kind, objectIdx)
     end
 end
 
 local function getFunctionLabel()
     local labelCnt = t.labelCnt
-    local label = t.functionName .. labelCnt
+    local label = t.className .. "_" .. labelCnt
     t.labelCnt = labelCnt + 1
     return label
 end
@@ -72,6 +91,10 @@ function t.init(tks)
     t.tm = {}
 
     t.labelCnt = 0
+    t.staticCnt = 0
+    t.fieldCnt = 0
+    t.argumentCnt = 0
+    t.varCnt = 0
 end
 
 
@@ -201,7 +224,8 @@ function t.compileSubroutine()
     local name = eatIdentifier()
     t.functionName = string.format("%s.%s", t.className, name)
     
-    if t.functionType == "method" then
+    if t.functionType == "constructor" then
+    elseif t.functionType == "method" then
         addTm("this", "argument", t.className)
     end
 
@@ -220,7 +244,16 @@ function t.compileSubroutineBody()
     eatSymbol("{")
     
     while t.compileVarDec() do end
+
     w.writeFunctionHead(t.functionName, t.varCnt)
+    if t.functionType == "constructor" then
+        w.writePush("constant", t.fieldCnt)
+        w.writeFunctionCall("Memory.alloc", "1")
+        w.writePop("pointer", "0")
+    elseif t.functionType == "method" then
+        w.writePush("argument", "0") 
+        w.writePop("pointer", "0")
+    end
 
     t.compileStatements()
 
@@ -296,6 +329,7 @@ function t.compileStatement()
         t.compileLet()
     elseif b == "do" then
         t.compileDo()
+        w.writePop("temp", 0)
     elseif b == "if" then
         t.compileIf()
     elseif b == "while" then
@@ -352,8 +386,7 @@ function t.compileLet()
     if isArr then
 
     else
-        local segment = (kind == "var" and "local" or kind)
-        w.writePop(segment, objectIdx)
+        popVar(name)
     end
 end
 
@@ -451,19 +484,19 @@ function t.compileSubroutineCall()
     local name1 = eatIdentifier()
     local name2 = nil
     local isMethodCall = false
-    local className = nil
+    local type = nil
     local objectIdx = nil
     local kind = nil
     local functionName = nil
 
     if t.tc[name1] then
-        className = t.tc[name1].type
+        type = t.tc[name1].type
         kind = t.tc[name1].kind
         objectIdx = t.tc[name1].idx
         isMethodCall = true
     end
     if t.tm[name1] then
-        className = t.tm[name1].type
+        type = t.tm[name1].type
         kind = t.tm[name1].kind
         objectIdx = t.tm[name1].idx
         isMethodCall = true
@@ -475,20 +508,23 @@ function t.compileSubroutineCall()
         name2 = eatIdentifier()
     end
 
+    local cnt = 0
     if name2 then
         if isMethodCall then
-            functionName = className .. "." .. name2
+            functionName = type .. "." .. name2
+            cnt = 1
             pushVar(name1)
         else
             functionName = name1 .. "." .. name2
         end
     else
-        functionName = name1
-        pushVar("this")
+        cnt = 1
+        functionName = t.className .. "." .. name1
+        w.writePush("pointer", 0)
     end
 
     eatSymbol("(")
-    local cnt = t.compileExpressionList()
+    cnt = cnt + t.compileExpressionList()
     w.writeFunctionCall(functionName, cnt)
     eatSymbol(")")
 end
@@ -536,6 +572,20 @@ local function isKeywordConstant(str)
     return str == "true" or str == "false" or str == "null" or str == "this"
 end
 
+local function pushString(str)
+    w.writePush("constant", #str)
+    w.writeFunctionCall("String.new", 1)
+    w.writePop("temp", 1)
+    for i=1, #str do
+        w.writePush("temp", 1)
+        local c = string.byte(str, i, i)
+        w.writePush("constant", c)
+        w.writeFunctionCall("String.appendChar", 2)
+        w.writePop("temp", 0)
+    end
+    w.writePush("temp", 1)
+end
+
 --[[
     term: integerConstant | stringConstant | keywordConstant |
 varName | varName '[' expression ']' | subroutineCall |
@@ -551,6 +601,7 @@ function t.compileTerm()
 
     elseif a == "stringConstant" then
         a, b = getNextToken()
+        pushString(b)
     elseif  isKeywordConstant(b)  then
         --'true' | 'false' | 'null' | 'this'
         a, b = getNextToken()
@@ -561,7 +612,7 @@ function t.compileTerm()
         elseif b == "false" or b == "null" then
             w.writePush("constant", "0")
         elseif b == "this" then
-            
+            w.writePush("pointer", "0")
         end
 
     elseif b == "(" then

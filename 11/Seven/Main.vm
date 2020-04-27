@@ -1,26 +1,38 @@
-function Main.main 2
+function Main.main 0
 push constant 7
-pop local 1
-push constant 0
-pop local 0
-label Main.main0
-push local 1
-push constant 0
-gt
-not
-if-goto Main.main1
-push local 0
-push constant 2
-add
-pop local 0
-push local 1
-push constant 1
-sub
-pop local 1
-goto Main.main0
-label Main.main1
-push local 0
-call Output.printInt 1
+call String.new 1
+pop temp 1
+push temp 1
+push constant 97
+call String.appendChar 2
+pop temp 0
+push temp 1
+push constant 98
+call String.appendChar 2
+pop temp 0
+push temp 1
+push constant 99
+call String.appendChar 2
+pop temp 0
+push temp 1
+push constant 100
+call String.appendChar 2
+pop temp 0
+push temp 1
+push constant 101
+call String.appendChar 2
+pop temp 0
+push temp 1
+push constant 102
+call String.appendChar 2
+pop temp 0
+push temp 1
+push constant 103
+call String.appendChar 2
+pop temp 0
+push temp 1
+call Output.printString 1
+pop temp 0
 push constant 0
 return
 
