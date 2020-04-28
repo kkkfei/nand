@@ -10,8 +10,18 @@
 class Main {
 
    function void main() {
-  
-      do Output.printString("abcdefg");
+      var Array arr;
+      var int i;
+      var int sum;
+
+      let arr = Array.new(4);
+      let arr[0] = 1;
+      let arr[1] = 2;
+      let arr[2] = 3;
+
+      do Output.printInt(arr[0]);
+      do Output.printInt(arr[1]);
+      do Output.printInt(arr[2]);
 
       return;
    }

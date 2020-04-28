@@ -363,12 +363,6 @@ function t.compileLet()
     local a, b  = getNextToken()
     local name = eatIdentifier()
 
-    local objectIdx = nil
-    local kind = nil
-    if t.tm[name] then
-        kind = t.tm[name].kind
-        objectIdx = t.tm[name].idx
-    end
     
     a, b  = peekNextToken()
     local isArr = false
@@ -377,6 +371,10 @@ function t.compileLet()
         t.compileExpression()
         eatSymbol("]")
         isArr = true
+
+        pushVar(name)
+        io.write("add\n")
+        w.writePop("temp", 7)
     end
 
     eatSymbol("=")
@@ -384,7 +382,9 @@ function t.compileLet()
     eatSymbol(";")
 
     if isArr then
-
+        w.writePush("temp", 7)
+        w.writePop("pointer", 1)
+        w.writePop("that", 0)
     else
         popVar(name)
     end
@@ -636,10 +636,17 @@ function t.compileTerm()
         if b == "(" or  b == "." then
             t.compileSubroutineCall()
         elseif b == "[" then
-            eatIdentifier()
+            -- varName '[' expression ']' 
+            local varname = eatIdentifier()
+            pushVar(varname)
+
             eatSymbol("[")
             t.compileExpression()
             eatSymbol("]")
+
+            io.write("add\n")
+            w.writePop("pointer", 1)
+            w.writePush("that", 0)
         else
             -- varName
             local varname = eatIdentifier()
