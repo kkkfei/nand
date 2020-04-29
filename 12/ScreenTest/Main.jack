@@ -8,6 +8,38 @@ class Main {
 
     /** Draws a sample pictue on the screen using lines and circles. */
     function void main() {
+        var int i;
+        var int j;
+
+        do Screen.setColor(true);
+        do Screen.clearScreen();
+        
+        do Screen.setColor(false);
+        while(i < 128)
+        {
+            let j = 0;
+            while(j < 128)
+            {
+                do Screen.drawPixel(i, j);
+                let j = j + 1;
+            }
+            let i = i+ 1;
+        }
+
+        let i = 0;
+        let j = 0;
+        do Screen.setColor(true);
+        while(i < 64)
+        {
+            let j = 0;
+            while(j < 64)
+            {
+                do Screen.drawPixel(i, j);
+                let j = j + 1;
+            }
+            let i = i+ 1;
+        }
+        return;
     
         do Screen.drawLine(0,220,511,220);        // base line
         do Screen.drawRectangle(280,90,410,220);  // house
