@@ -1,83 +1,16 @@
-function Main.main 2
-push constant 0
-not
-call Screen.setColor 1
+function Main.main 0
+push constant 280
+push constant 90
+push constant 345
+push constant 35
+call Screen.drawLine 4
 pop temp 0
-call Screen.clearScreen 0
+push constant 345
+push constant 35
+push constant 410
+push constant 90
+call Screen.drawLine 4
 pop temp 0
-push constant 0
-call Screen.setColor 1
-pop temp 0
-label WHILE_EXP0
-push local 0
-push constant 128
-lt
-not
-if-goto WHILE_END0
-push constant 0
-pop local 1
-label WHILE_EXP1
-push local 1
-push constant 128
-lt
-not
-if-goto WHILE_END1
-push local 0
-push local 1
-call Screen.drawPixel 2
-pop temp 0
-push local 1
-push constant 1
-add
-pop local 1
-goto WHILE_EXP1
-label WHILE_END1
-push local 0
-push constant 1
-add
-pop local 0
-goto WHILE_EXP0
-label WHILE_END0
-push constant 0
-pop local 0
-push constant 0
-pop local 1
-push constant 0
-not
-call Screen.setColor 1
-pop temp 0
-label WHILE_EXP2
-push local 0
-push constant 64
-lt
-not
-if-goto WHILE_END2
-push constant 0
-pop local 1
-label WHILE_EXP3
-push local 1
-push constant 64
-lt
-not
-if-goto WHILE_END3
-push local 0
-push local 1
-call Screen.drawPixel 2
-pop temp 0
-push local 1
-push constant 1
-add
-pop local 1
-goto WHILE_EXP3
-label WHILE_END3
-push local 0
-push constant 1
-add
-pop local 0
-goto WHILE_EXP2
-label WHILE_END2
-push constant 0
-return
 push constant 0
 push constant 220
 push constant 511
@@ -113,18 +46,6 @@ push constant 360
 push constant 170
 push constant 3
 call Screen.drawCircle 3
-pop temp 0
-push constant 280
-push constant 90
-push constant 345
-push constant 35
-call Screen.drawLine 4
-pop temp 0
-push constant 345
-push constant 35
-push constant 410
-push constant 90
-call Screen.drawLine 4
 pop temp 0
 push constant 140
 push constant 60
